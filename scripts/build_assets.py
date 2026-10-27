@@ -91,16 +91,16 @@ PROJECTS = [
      "your browser, and a scroll-driven film.",
      ["LLM Q&A", "Grounded answers", "Vercel"], "LIVE"),
     ("medicine", "sumankrsh/medicine-drug-advisor", "Medicine & Drug Advisor",
-     "AI-powered medicine database and drug-interaction checker, focused on Indian "
-     "medicines and mental-health drugs.",
-     ["FastAPI", "React", "RAG"], ""),
+     "Medicine database and drug-interaction checker for Indian and mental-health "
+     "medicines, with a FastAPI backend and an experimental RAG pipeline.",
+     ["FastAPI", "Python", "RAG beta"], ""),
     ("accelerator", "sumankrsh/ai-accelerator-toolkit", "AI-Accelerator Toolkit",
      "AI-readiness dashboards, a cloud blueprint generator, an ROI estimator and a "
      "GenAI playground for enterprise AI programmes.",
      ["Python", "Streamlit", "GenAI"], ""),
     ("sentiment", "sumankrsh/Sentiment-Analysis.ipynb", "Sentiment analysis with BERT",
      "Fine-tuned BERT with Hugging Face Transformers against a TF-IDF + Naive Bayes "
-     "baseline: about 10% higher accuracy.",
+     "baseline: 81.5% vs 75.6% accuracy.",
      ["BERT", "Hugging Face", "NLP"], "★ 8"),
 ]
 
@@ -779,9 +779,9 @@ TYPED_C = ["GenAI & RAG in production", "agentic AI, human in the loop",
            "Responsible AI · LLMOps", "~$5M Data & AI portfolio"]
 PROJECT_SHORT = {
     "portfolio": "Live AI answers grounded in my real work.",
-    "medicine": "Drug-interaction checker built on RAG.",
+    "medicine": "Drug-interaction checker for Indian medicines.",
     "accelerator": "AI readiness, cloud blueprints and ROI.",
-    "sentiment": "Fine-tuned BERT: ~10% above a TF-IDF baseline.",
+    "sentiment": "Fine-tuned BERT: 81.5% vs a 75.6% baseline.",
 }
 
 

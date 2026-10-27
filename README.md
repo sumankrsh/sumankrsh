@@ -78,7 +78,7 @@
 ## ✦ Toolbox
 
 <p align="center">
-  <img alt="Python, PyTorch, TensorFlow, scikit-learn, Azure, AWS, GCP, Docker, FastAPI, React, Git, GitHub Actions, Vercel" src="https://skillicons.dev/icons?i=py,pytorch,tensorflow,sklearn,azure,aws,gcp,docker,fastapi,react,git,githubactions,vercel&perline=13">
+  <img alt="Python, PyTorch, TensorFlow, scikit-learn, Azure, AWS, GCP, Docker, FastAPI, Git, GitHub Actions, Vercel" src="https://skillicons.dev/icons?i=py,pytorch,tensorflow,sklearn,azure,aws,gcp,docker,fastapi,git,githubactions,vercel&perline=12">
 </p>
 
 <picture>
