@@ -97,9 +97,8 @@
 
 ## ✦ Latest writing
 
-<!-- BLOG-POST-LIST:START -->
-- [**Building a GCC That Leads, Not Just Delivers: A Data & AI Playbook**](https://www.mukherjeesuman.com/blog/building-gcc-that-leads-data-ai-playbook)<br><sub>A first-person playbook for moving a GCC in India from delivery hub to data and AI capability centre: outcomes, product teams, governance and leadership.</sub>
-- [**From AI Pilot to Production in Insurance: A Leader's Checklist**](https://www.mukherjeesuman.com/blog/ai-pilot-to-production-insurance-checklist)<br><sub>Eight questions I use to decide whether an AI or GenAI initiative in insurance and BFSI is ready for governed production, from value to adoption.</sub>
+<!-- BLOG-POST-LIST:START -->- [**Building a GCC That Leads, Not Just Delivers: A Data &amp; AI Playbook**](https://www.mukherjeesuman.com/blog/building-gcc-that-leads-data-ai-playbook)<br><sub>A first-person playbook for moving a GCC in India from delivery hub to data and AI capability centre: outcomes, product teams, governance and leadership.</sub>
+- [**From AI Pilot to Production in Insurance: A Leader&#39;s Checklist**](https://www.mukherjeesuman.com/blog/ai-pilot-to-production-insurance-checklist)<br><sub>Eight questions I use to decide whether an AI or GenAI initiative in insurance and BFSI is ready for governed production, from value to adoption.</sub>
 <!-- BLOG-POST-LIST:END -->
 
 <sub><a href="https://www.mukherjeesuman.com/blog">All posts →</a></sub>
