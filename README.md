@@ -69,10 +69,9 @@
 </p>
 
 <p align="center"><sub>
-  More: <a href="https://github.com/sumankrsh/VMware-Server-Usage-Forecasting">Server usage forecasting</a> ·
-  <a href="https://github.com/sumankrsh/movie-recommendation-system">Recommendation system</a> ·
+  More: <a href="https://github.com/sumankrsh/movie-recommendation-system">Recommendation system</a> ·
   <a href="https://github.com/sumankrsh/Anomaly-Detection-Model-">Anomaly detection</a> ·
-  <a href="https://github.com/sumankrsh/Breast-Cancer-Detection-Model">Deep-learning diagnostics</a>
+  <a href="https://github.com/sumankrsh/Breast-Cancer-Detection-Model">Tabular deep learning</a>
 </sub></p>
 
 ## ✦ Toolbox
