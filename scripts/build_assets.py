@@ -182,17 +182,20 @@ def e(s):
     return escape(s, {'"': "&quot;"})
 
 
-def wrap(text, width_px, size, kind="sans"):
+def wrap(text, width_px, size, kind="sans", max_lines=None, slack=1.18):
+    """Greedy wrap; `slack` leaves room for fallback fonts wider than Helvetica."""
     words, lines, cur = text.split(), [], ""
     for w in words:
         test = (cur + " " + w).strip()
-        if measure(test, kind, size) * 1.06 <= width_px:
+        if measure(test, kind, size) * slack <= width_px:
             cur = test
         else:
             lines.append(cur)
             cur = w
     if cur:
         lines.append(cur)
+    if max_lines and len(lines) > max_lines:
+        raise ValueError(f"Text needs {len(lines)} lines (max {max_lines}); shorten it: {text!r}")
     return lines
 
 
@@ -541,7 +544,7 @@ def programmes(t):
                      f'stroke-linejoin="round" stroke-dasharray="24" stroke-dashoffset="24" '
                      f'style="animation:draw .8s 1.2s ease-out forwards"/>')
         o.append(mono(mlabel, x + cw - 26, y + 86, 9.5, t["dim"], track=1.1, anchor="end"))
-        for j, line in enumerate(wrap(text, cw - 52, 15)[:3]):
+        for j, line in enumerate(wrap(text, cw - 52, 15, max_lines=3)):
             o.append(f'<text class="sans" x="{x+26}" y="{y+114 + j*21}" font-size="15" fill="{t["muted"]}">{e(line)}</text>')
         o.append(f'<line x1="{x+26}" y1="{y+ch-40}" x2="{x+cw-26}" y2="{y+ch-40}" stroke="{t["line"]}"/>')
         o.append(mono(stack, x + 26, y + ch - 17, 10, t["dim"], track=1.2))
@@ -576,7 +579,7 @@ def project(t, top, title, text, tags, badge):
         else:
             o.append(mono(badge, W - 24 - bw / 2, 37, 11, t["text"], track=1.2, anchor="middle"))
     o.append(f'<text class="serif" x="28" y="82" font-size="26" fill="{t["text"]}">{e(title)}</text>')
-    for j, line in enumerate(wrap(text, W - 56, 15.5)[:3]):
+    for j, line in enumerate(wrap(text, W - 56, 15.5, max_lines=3)):
         o.append(f'<text class="sans" x="28" y="{112 + j*22}" font-size="15.5" fill="{t["muted"]}">{e(line)}</text>')
     tx = 28
     for tag in tags:
@@ -663,7 +666,7 @@ def credentials(t):
         o.append(f'<g class="up" style="animation-delay:{.1 + i*.1:.2f}s">'
                  f'<rect x="{x+.5}" y=".5" width="{cwid-1:.1f}" height="{th-1}" rx="16" fill="{t["card"]}" stroke="{t["line"]}"/>'
                  + seal(x + 40, th / 2, t["violet"], "check", i))
-        fs = min(15, 15 * (cwid - 92) / max(measure(ln, "sans", 15, bold=True) * 1.08 for ln in lines))
+        fs = min(15, 15 * (cwid - 92) / max(measure(ln, "sans", 15, bold=True) * 1.2 for ln in lines))
         for j, ln in enumerate(lines):
             o.append(f'<text class="sans" x="{x+76:.1f}" y="{33 + j*19}" font-size="{fs:.1f}" font-weight="600" '
                      f'fill="{t["text"]}">{e(ln)}</text>')
@@ -674,7 +677,8 @@ def credentials(t):
         o.append(f'<g class="up" style="animation-delay:{.5 + i*.1:.2f}s">'
                  f'<rect x="{x+.5:.1f}" y="{y+.5}" width="{ewid-1:.1f}" height="{th-1}" rx="16" fill="{t["card"]}" stroke="{t["line"]}"/>'
                  + seal(x + 40, y + th / 2, t["peach"], "cap", i + 4)
-                 + f'<text class="sans" x="{x+76:.1f}" y="{y+44}" font-size="15.5" font-weight="600" fill="{t["text"]}">{e(title)}</text>'
+                 + f'<text class="sans" x="{x+76:.1f}" y="{y+44}" font-size="{min(15.5, 15.5 * (ewid - 92) / (measure(title, "sans", 15.5, bold=True) * 1.2)):.1f}" '
+                   f'font-weight="600" fill="{t["text"]}">{e(title)}</text>'
                  + mono(issuer, x + 76, y + 66, 9.5, t["dim"], track=0.7) + '</g>')
     css = "@keyframes draw{to{stroke-dashoffset:0}}"
     return svg(W, H, t, "".join(o), css, defs,
@@ -723,7 +727,7 @@ def cta(t):
 def button(t, label, sub, primary=False):
     lw = measure(label, "sans", 15, bold=True)
     sw = mono_w(sub, 10, 0.8)
-    W = int(max(lw, sw) + 64)
+    W = int(max(lw * 1.2, sw) + 64)
     H = 54
     fill = "url(#bb)" if primary else t["card"]
     fg = "#fff" if primary else t["text"]
@@ -764,6 +768,362 @@ def footer(t):
     return svg(W, H, t, "".join(o), "", defs, title="")
 
 
+
+# --------------------------------------------------------------------------- #
+# COMPACT (phones and narrow windows). Shown below 1100px viewport width.
+# Always the dark palette: these are self-contained cards that read well on
+# either GitHub theme, and it avoids combining width + colour-scheme rules.
+# --------------------------------------------------------------------------- #
+SUB_C = ["12+ years taking GenAI and ML", "into governed production."]
+TYPED_C = ["GenAI & RAG in production", "agentic AI, human in the loop",
+           "Responsible AI · LLMOps", "~$5M Data & AI portfolio"]
+PROJECT_SHORT = {
+    "portfolio": "Live AI answers grounded in my real work.",
+    "medicine": "Drug-interaction checker built on RAG.",
+    "accelerator": "AI readiness, cloud blueprints and ROI.",
+    "sentiment": "Fine-tuned BERT: ~10% above a TF-IDF baseline.",
+}
+
+
+def typing(defs, o, t, phrases, x0, base, fs, clip_y, clip_h, uid):
+    cw = fs * 0.6
+    t_type, t_hold, t_del, t_gap = 0.055, 2.1, 0.02, 0.35
+    events, clock = [], 1.0
+    for p in phrases:
+        n = len(p)
+        ev = [(clock + k * t_type, k * cw) for k in range(1, n + 1)]
+        end_type = clock + n * t_type
+        ev += [(end_type + t_hold + k * t_del, (n - k) * cw) for k in range(1, n + 1)]
+        events.append(ev)
+        clock = end_type + t_hold + n * t_del + t_gap
+    T = clock
+    cursor = [(0, 0.0)]
+    for i, (p, ev) in enumerate(zip(phrases, events)):
+        frames = [(0, 0.0)] + ev
+        defs.append(f'<clipPath id="{uid}{i}"><rect x="{x0}" y="{clip_y}" height="{clip_h}" width="0">'
+                    f'<animate attributeName="width" dur="{T:.2f}s" repeatCount="indefinite" calcMode="discrete" '
+                    f'keyTimes="{";".join(f"{a / T:.5f}" for a, _ in frames)}" '
+                    f'values="{";".join(f"{b:.1f}" for _, b in frames)}"/></rect></clipPath>')
+        o.append(f'<g clip-path="url(#{uid}{i})">' + mono(p, x0, base, fs, t["text"]) + '</g>')
+        cursor += ev
+    o.append(f'<rect x="{x0+1}" y="{base - fs*0.85:.1f}" width="{fs*0.55:.1f}" height="{fs*1.1:.1f}" rx="1.5" '
+             f'fill="{t["peach"]}" class="blink"><animate attributeName="x" dur="{T:.2f}s" repeatCount="indefinite" '
+             f'calcMode="discrete" keyTimes="{";".join(f"{a / T:.5f}" for a, _ in cursor)}" '
+             f'values="{";".join(f"{x0 + b + 1:.1f}" for _, b in cursor)}"/></rect>')
+
+
+def hero_c(t):
+    W, H = 600, 700
+    d0, body = backdrop(W, H, t, uid="h")
+    defs, o = [d0], [body]
+    pill = "OPEN TO CONVERSATIONS"
+    pw = mono_w(pill, 15, 1.5) + 58
+    o.append(f'<g class="fade"><rect x="36" y="34" width="{pw:.0f}" height="40" rx="20" fill="{t["card"]}" '
+             f'fill-opacity=".75" stroke="{t["line"]}"/><circle cx="60" cy="54" r="5" fill="{t["green"]}"/>'
+             f'<circle cx="60" cy="54" r="5" fill="{t["green"]}" class="tb ping"/>'
+             + mono(pill, 76, 59.5, 15, t["text"], track=1.5) + '</g>')
+    cx, cy = 300, 200
+    defs.append(f'<radialGradient id="oglow"><stop offset="0" stop-color="{t["violet"]}" stop-opacity=".5"/>'
+                f'<stop offset="1" stop-color="{t["violet"]}" stop-opacity="0"/></radialGradient>'
+                f'<radialGradient id="ocore" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="{t["core1"]}"/>'
+                f'<stop offset=".45" stop-color="{t["core2"]}"/><stop offset="1" stop-color="{t["core3"]}"/></radialGradient>'
+                f'<clipPath id="ocl"><circle cx="{cx}" cy="{cy}" r="58"/></clipPath>')
+    chips = [("GenAI", 112, 132), ("RAG", 494, 120), ("Agents", 488, 282), ("LLMOps", 116, 280)]
+    g = ['<g class="fade" style="animation-delay:.3s">']
+    for _, lx, ly in chips:
+        g.append(f'<line x1="{lx}" y1="{ly}" x2="{cx}" y2="{cy}" stroke="{t["violet"]}" stroke-opacity=".45" '
+                 f'stroke-dasharray="3 5" class="flow"/>')
+    g.append(f'<circle cx="{cx}" cy="{cy}" r="125" fill="url(#oglow)"/>')
+    g.append(f'<g><circle cx="{cx}" cy="{cy}" r="112" stroke="{t["line"]}" stroke-width="1.4" stroke-dasharray="1 7"/>'
+             f'<animateTransform attributeName="transform" type="rotate" from="0 {cx} {cy}" to="360 {cx} {cy}" '
+             f'dur="60s" repeatCount="indefinite"/></g>')
+    ell = f'M{cx-160},{cy} a160,54 0 1,0 320,0 a160,54 0 1,0 -320,0'
+    g.append(f'<g transform="rotate(-14 {cx} {cy})"><path d="{ell}" stroke="{t["lav"]}" stroke-opacity=".45" stroke-dasharray="2 6"/>')
+    for k, (col, rr) in enumerate([(t["peach"], 5), (t["lav"], 4), (t["violet"], 3.5)]):
+        g.append(f'<circle r="{rr}" fill="{col}"><animateMotion dur="10s" begin="{-k*3.3:.1f}s" repeatCount="indefinite" path="{ell}"/></circle>')
+    g.append('</g>')
+    for k in range(2):
+        g.append(f'<circle cx="{cx}" cy="{cy}" r="58" stroke="{t["violet"]}" stroke-width="1.6" class="tb ping" style="animation-delay:{k*1.6}s"/>')
+    g.append(f'<circle cx="{cx}" cy="{cy}" r="58" fill="url(#ocore)"/>')
+    wave = " ".join("q 15,-14 30,0 q 15,14 30,0" for _ in range(8))
+    g.append(f'<g clip-path="url(#ocl)"><path d="M{cx-120},{cy} {wave}" stroke="#fff" stroke-width="2.2" stroke-opacity=".85">'
+             f'<animateTransform attributeName="transform" type="translate" from="0 0" to="60 0" dur="1.8s" repeatCount="indefinite"/></path></g>')
+    g.append(f'<ellipse cx="{cx-20}" cy="{cy-27}" rx="23" ry="11" fill="#fff" opacity=".22"/>')
+    for k, (label, lx, ly) in enumerate(chips):
+        w = mono_w(label, 16, 0.4) + 30
+        g.append(f'<g class="float" style="animation-delay:{-k*1.3:.1f}s"><rect x="{lx-w/2:.1f}" y="{ly-18}" width="{w:.1f}" '
+                 f'height="36" rx="18" fill="{t["card"]}" stroke="{t["line"]}"/>'
+                 + mono(label, lx, ly + 5.5, 16, t["text"], track=0.4, anchor="middle") + '</g>')
+    g.append('</g>')
+    o += g
+    o.append(f'<g class="fade" style="animation-delay:.1s">{star(44, 362, 8, t["violet"])}'
+             + mono("DATA & AI DELIVERY LEADER", 62, 368, 16, t["lav"], track=2) + '</g>')
+    nw = min(measure(NAME, "serif", 62), 528)
+    o.append(f'<text class="serif up" x="36" y="432" font-size="62" fill="{t["text"]}" textLength="{nw:.0f}" '
+             f'lengthAdjust="spacingAndGlyphs" style="animation-delay:.15s">{e(NAME)}</text>')
+    aw, bw = measure(TAG_A, "serif", 38), measure(TAG_B, "serif", 38, italic=True)
+    bx = 36 + aw + 11
+    o.append(f'<g class="up" style="animation-delay:.3s"><rect x="{bx-4:.0f}" y="490" width="{bw+10:.0f}" height="11" rx="4" '
+             f'fill="url(#gtext)" opacity=".32" class="tb" style="transform-origin:0 50%;animation:grow 1s 1s cubic-bezier(.2,.7,.2,1) both"/>'
+             f'<text class="serif" x="36" y="484" font-size="38" fill="{t["text"]}" textLength="{aw:.0f}" lengthAdjust="spacingAndGlyphs">{e(TAG_A)}</text>'
+             f'<text class="serif" x="{bx:.0f}" y="484" font-size="38" font-style="italic" fill="url(#gtext)" textLength="{bw:.0f}" '
+             f'lengthAdjust="spacingAndGlyphs">{e(TAG_B)}</text></g>')
+    for i, line in enumerate(SUB_C):
+        o.append(f'<text class="sans up" x="36" y="{532 + i*32}" font-size="25" fill="{t["muted"]}" '
+                 f'style="animation-delay:{.45 + i*.08:.2f}s">{e(line)}</text>')
+    o.append(f'<g class="up" style="animation-delay:.7s"><rect x="28" y="584" width="544" height="48" rx="14" fill="{t["card"]}" '
+             f'fill-opacity=".72" stroke="{t["line"]}"/><text class="mono" x="46" y="615" font-size="21" fill="{t["violet"]}">›</text>')
+    typing(defs, o, t, TYPED_C, 72, 615, 21, 586, 44, "tc")
+    o.append('</g>')
+    items = "  ·  ".join(i.upper() for i in TICKER) + "  ·  "
+    L = mono_w(items, 15, 1.6)
+    defs.append('<linearGradient id="tkf"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".12" stop-color="#fff"/>'
+                '<stop offset=".88" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>'
+                f'<mask id="tkm"><rect width="{W}" height="{H}" fill="url(#tkf)"/></mask>')
+    o.append(f'<line x1="20" y1="648" x2="{W-20}" y2="648" stroke="{t["line"]}"/><g mask="url(#tkm)"><g>'
+             + mono(items, 0, 682, 15, t["dim"], track=1.6) + mono(items, L, 682, 15, t["dim"], track=1.6)
+             + f'<animateTransform attributeName="transform" type="translate" from="0 0" to="{-L:.1f} 0" dur="{L/38:.1f}s" repeatCount="indefinite"/></g></g>')
+    return svg(W, H, t, "".join(o), "@keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}", "".join(defs),
+               title=f"{NAME}: Data & AI Delivery Leader. I take AI from POC to P&L.")
+
+
+def metrics_c(t):
+    W, gap, th = 600, 16, 196
+    tw = (W - gap) / 2
+    H = th * 2 + gap
+    o, defs = [], ""
+    for i, (final, frames, label, sub) in enumerate(METRICS):
+        x, y = (i % 2) * (tw + gap), (i // 2) * (th + gap)
+        cx, delay = x + tw / 2, 0.25 + i * 0.18
+        defs += f'<clipPath id="mc{i}"><rect x="{x}" y="{y}" width="{tw}" height="{th}" rx="20"/></clipPath>'
+        o.append(f'<g class="up" style="animation-delay:{delay-.2:.2f}s"><rect x="{x+.5}" y="{y+.5}" width="{tw-1}" height="{th-1}" '
+                 f'rx="20" fill="{t["card"]}" stroke="{t["line"]}"/>'
+                 f'<g clip-path="url(#mc{i})"><rect x="{x-120}" y="{y-20}" width="70" height="{th+40}" fill="{t["lav"]}" opacity=".07" '
+                 f'transform="skewX(-18)"><animateTransform attributeName="transform" type="translate" values="0 0;{tw+300} 0;{tw+300} 0" '
+                 f'keyTimes="0;.35;1" dur="7s" begin="{1.5+i*0.6:.1f}s" repeatCount="indefinite" additive="sum"/></rect></g>')
+        n, dur = len(frames) - 1, 1.6
+        times = [delay + dur * (1 - (1 - k / n) ** 2) for k in range(n + 1)]
+        for k, f in enumerate(frames):
+            anim = (f'<set attributeName="visibility" to="visible" begin="{times[k]:.3f}s"/>' if k else "") + \
+                   (f'<set attributeName="visibility" to="hidden" begin="{times[k+1]:.3f}s"/>' if k < n else "")
+            o.append(f'<text class="sans" x="{cx:.1f}" y="{y+90}" font-size="62" font-weight="700" letter-spacing="-1.5" '
+                     f'text-anchor="middle" fill="url(#gtext)" visibility="{"visible" if k == 0 else "hidden"}">{e(f)}{anim}</text>')
+        o.append(mono(label, cx, y + 128, 16, t["text"], track=0.8, anchor="middle"))
+        o.append(mono(sub, cx, y + 153, 13.5, t["dim"], track=0.8, anchor="middle"))
+        o.append(f'<rect x="{x+30}" y="{y+th-26}" width="{tw-60}" height="4" rx="2" fill="{t["line"]}"/>'
+                 f'<rect x="{x+30}" y="{y+th-26}" width="{tw-60}" height="4" rx="2" fill="url(#gtext)" class="tb" '
+                 f'style="transform-origin:0 50%;animation:grow {dur}s {delay}s cubic-bezier(.2,.7,.2,1) both"/></g>')
+    return svg(W, H, t, "".join(o), "@keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}", defs,
+               title="12+ years in AI and data · $5M portfolio owned · ~30% lead conversion lift · 500TB+ cloud data migrated")
+
+
+def pipeline_c(t):
+    W, row, top = 600, 132, 74
+    H = top + row * (len(PIPELINE) - 1) + 104
+    defs, body = backdrop(W, H, t, uid="p")
+    o = [body]
+    x, ys = 74, [top + i * row for i in range(len(PIPELINE))]
+    travel, cycle, span = 4.8, 6.4, ys[-1] - ys[0]
+    defs += (f'<linearGradient id="comet" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{t["violet"]}" stop-opacity="0"/>'
+             f'<stop offset=".7" stop-color="{t["violet"]}"/><stop offset="1" stop-color="{t["peach"]}"/></linearGradient>')
+    o.append(f'<line x1="{x}" y1="{ys[0]}" x2="{x}" y2="{ys[-1]}" stroke="{t["line"]}" stroke-width="2.5"/>'
+             f'<line x1="{x}" y1="{ys[0]}" x2="{x}" y2="{ys[-1]}" stroke="{t["violet"]}" stroke-opacity=".5" stroke-width="2.5" stroke-dasharray="3 5" class="flow"/>'
+             f'<rect x="{x-2.5}" y="{ys[0]-120}" width="5" height="120" rx="2.5" fill="url(#comet)">'
+             f'<animateTransform attributeName="transform" type="translate" values="0 0;0 {span};0 {span}" keyTimes="0;{travel/cycle:.3f};1" dur="{cycle}s" repeatCount="indefinite"/>'
+             f'<animate attributeName="opacity" values="1;1;0;0" keyTimes="0;{travel/cycle:.3f};{(travel+.4)/cycle:.3f};1" dur="{cycle}s" repeatCount="indefinite"/></rect>')
+    for i, (num, title, cap) in enumerate(PIPELINE):
+        y, last = ys[i], i == len(PIPELINE) - 1
+        col = t["peach"] if last else t["violet"]
+        p = (travel * (y - ys[0]) / span) / cycle
+        kts = f"0;{max(p-.02, .0005):.3f};{p:.3f};{min(p+.14, .999):.3f};1"
+        o.append(f'<g class="up" style="animation-delay:{.15+i*.12:.2f}s">'
+                 f'<circle cx="{x}" cy="{y}" r="36" fill="{t["card"]}" stroke="{t["line"]}" stroke-width="1.8"/>'
+                 f'<circle cx="{x}" cy="{y}" r="36" stroke="{col}" stroke-width="2.6" opacity="{.9 if last else 0}">'
+                 + ("" if last else f'<animate attributeName="opacity" values="0;0;1;.15;0" keyTimes="{kts}" dur="{cycle}s" repeatCount="indefinite"/>')
+                 + f'</circle><circle cx="{x}" cy="{y}" r="36" fill="{col}" opacity="0"><animate attributeName="opacity" values="0;0;.28;0;0" '
+                 f'keyTimes="{kts}" dur="{cycle}s" repeatCount="indefinite"/></circle>'
+                 + mono(num, x, y + 6.5, 18, col, anchor="middle")
+                 + f'<text class="serif" x="{x+64}" y="{y-8}" font-size="32" fill="{t["text"]}"' + (' font-style="italic"' if last else "")
+                 + f'>{e(title)}</text>')
+        o.append(f'<text class="sans" x="{x+64}" y="{y+26}" font-size="21" fill="{t["muted"]}">{e(" ".join(cap))}</text></g>'
+                 if measure(" ".join(cap), "sans", 21) * 1.18 < W - x - 88 else
+                 "".join(f'<text class="sans" x="{x+64}" y="{y+24+j*26}" font-size="21" fill="{t["muted"]}">{e(c)}</text>'
+                         for j, c in enumerate(cap)) + '</g>')
+    return svg(W, H, t, "".join(o), "", defs, title="How I take AI from POC to P&L: the demo, the data, guardrails, production, P&L")
+
+
+def programmes_c(t):
+    W, gap, pad = 600, 18, 26
+    o, y = [], 0
+    for i, (tag, title, metric, mlabel, text, stack) in enumerate(PROGRAMMES):
+        lines = wrap(text, W - 2 * pad, 23, max_lines=5)
+        ch = 176 + len(lines) * 31 + 64
+        o.append(f'<g class="up" style="animation-delay:{.1+i*.08:.2f}s"><rect x=".5" y="{y+.5}" width="{W-1}" height="{ch-1}" rx="20" '
+                 f'fill="{t["card"]}" stroke="{t["line"]}"/>' + runner(.5, y + .5, W - 1, ch - 1, 20, 9, -i * 1.5, "")
+                 + mono(tag, pad, y + 46, 14.5, t["violet"], track=1.2))
+        if metric:
+            o.append(f'<text class="sans" x="{W-pad}" y="{y+64}" font-size="44" font-weight="700" letter-spacing="-1" text-anchor="end" '
+                     f'fill="url(#gtext)">{e(metric)}</text>')
+        else:
+            sx, sy = W - pad - 26, y + 44
+            o.append(f'<path d="M{sx} {sy-26} l22 8 v14 c0 14 -10 22 -22 27 c-12 -5 -22 -13 -22 -27 v-14 z" fill="{t["violet"]}" '
+                     f'fill-opacity=".14" stroke="url(#gtext)" stroke-width="2.4" stroke-linejoin="round"/>'
+                     f'<path d="M{sx-9} {sy} l6 6 l11 -12" stroke="url(#grun)" stroke-width="2.8" stroke-linecap="round" '
+                     f'stroke-linejoin="round" stroke-dasharray="30" stroke-dashoffset="30" style="animation:draw .8s 1.2s ease-out forwards"/>')
+        o.append(mono(mlabel, W - pad, y + 92, 13, t["dim"], track=1, anchor="end"))
+        o.append(f'<text class="serif" x="{pad}" y="{y+138}" font-size="33" fill="{t["text"]}">{e(title)}</text>')
+        for j, ln in enumerate(lines):
+            o.append(f'<text class="sans" x="{pad}" y="{y+180+j*31}" font-size="23" fill="{t["muted"]}">{e(ln)}</text>')
+        o.append(f'<line x1="{pad}" y1="{y+ch-50}" x2="{W-pad}" y2="{y+ch-50}" stroke="{t["line"]}"/>'
+                 + mono(stack, pad, y + ch - 20, 14, t["dim"], track=1) + '</g>')
+        y += ch + gap
+    return svg(W, y - gap, t, "".join(o), "@keyframes draw{to{stroke-dashoffset:0}}", "", title="Selected programmes")
+
+
+def toolbox_c(t):
+    W, pad, ph = 600, 24, 42
+    rows, y, k = [], 30, 0
+    o_rows = []
+    for label, items, lab in TOOLBOX:
+        o_rows.append((label, y, lab))
+        y += 18
+        x = pad
+        for it in items:
+            w = mono_w(it, 18, 0.2) + 32
+            if x + w > W - pad:
+                x, y = pad, y + ph + 10
+            rows.append((it, x, y, w, lab))
+            x += w + 10
+        y += ph + 34
+    H = y - 6
+    defs, body = backdrop(W, H, t, uid="tb", blobs=False)
+    o = [body]
+    for i, (label, ly, lab) in enumerate(o_rows):
+        if i:
+            o.append(f'<line x1="{pad}" y1="{ly-22}" x2="{W-pad}" y2="{ly-22}" stroke="{t["line"]}" stroke-dasharray="2 4"/>')
+        o.append(mono(label, pad, ly, 14, t["peach"] if lab else t["lav"], track=1.4))
+    cyc = len(rows) * 0.35
+    for k, (it, x, py, w, lab) in enumerate(rows):
+        dash = ' stroke-dasharray="4 4"' if lab else ""
+        o.append(f'<g class="up" style="animation-delay:{.05+k*.025:.3f}s"><rect x="{x}" y="{py}" width="{w:.1f}" height="{ph}" rx="21" '
+                 f'fill="{t["card"]}" stroke="{t["line"]}"{dash}/><rect x="{x}" y="{py}" width="{w:.1f}" height="{ph}" rx="21" '
+                 f'stroke="url(#grun)" stroke-width="1.8" opacity="0" style="animation:hi {cyc:.1f}s {k*.35:.2f}s infinite"/>'
+                 + mono(it, x + w / 2, py + 27.5, 18, t["muted"] if lab else t["text"], track=0.2, anchor="middle") + '</g>')
+    hi = 100 * 2.2 / cyc
+    return svg(W, H, t, "".join(o), f"@keyframes hi{{0%{{opacity:0}}{hi/2:.2f}%{{opacity:1}}{hi:.2f}%{{opacity:0}}100%{{opacity:0}}}}",
+               defs, title="Toolbox")
+
+
+def credentials_c(t):
+    W, gap = 600, 14
+    tw, th, eh = (W - gap) / 2, 172, 108
+    o = []
+
+    def seal(cx, cy, col, glyph, i, r=25):
+        s = (f'<g><circle cx="{cx}" cy="{cy}" r="{r+7}" stroke="{col}" stroke-opacity=".55" stroke-dasharray="2 4"/>'
+             f'<animateTransform attributeName="transform" type="rotate" from="0 {cx} {cy}" to="360 {cx} {cy}" dur="{24+i*3}s" repeatCount="indefinite"/></g>'
+             f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{col}" fill-opacity=".14" stroke="{col}" stroke-width="1.8"/>')
+        if glyph == "check":
+            return s + (f'<path d="M{cx-9} {cy+1} l6 6 l12 -13" stroke="{col}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" '
+                        f'stroke-dasharray="34" stroke-dashoffset="34" style="animation:draw .7s {.6+i*.15:.2f}s ease-out forwards"/>')
+        return s + (f'<path d="M{cx-15} {cy-3} L{cx} {cy-11} L{cx+15} {cy-3} L{cx} {cy+5} Z" stroke="{col}" stroke-width="2" stroke-linejoin="round"/>'
+                    f'<path d="M{cx-8} {cy+1} v7 c0 4 16 4 16 0 v-7" stroke="{col}" stroke-width="2"/>')
+
+    for i, (lines, issuer) in enumerate(CERTS):
+        x, y = (i % 2) * (tw + gap), (i // 2) * (th + gap)
+        fs = min(22, 22 * (tw - 44) / max(measure(ln, "sans", 22, bold=True) * 1.2 for ln in lines))
+        o.append(f'<g class="up" style="animation-delay:{.1+i*.1:.2f}s"><rect x="{x+.5}" y="{y+.5}" width="{tw-1}" height="{th-1}" rx="18" '
+                 f'fill="{t["card"]}" stroke="{t["line"]}"/>' + seal(x + 54, y + 50, t["violet"], "check", i)
+                 + "".join(f'<text class="sans" x="{x+22}" y="{y+108+j*27}" font-size="{fs:.1f}" font-weight="600" fill="{t["text"]}">{e(ln)}</text>'
+                           for j, ln in enumerate(lines))
+                 + mono(issuer, x + 22, y + th - 14, 12.5, t["dim"], track=0.6) + '</g>')
+    y0 = 2 * th + gap + 18
+    for i, (title, issuer) in enumerate(EDUCATION):
+        y = y0 + i * (eh + gap)
+        fs = min(22, 22 * (W - 130) / (measure(title, "sans", 22, bold=True) * 1.2))
+        o.append(f'<g class="up" style="animation-delay:{.5+i*.1:.2f}s"><rect x=".5" y="{y+.5}" width="{W-1}" height="{eh-1}" rx="18" '
+                 f'fill="{t["card"]}" stroke="{t["line"]}"/>' + seal(56, y + eh / 2, t["peach"], "cap", i + 4)
+                 + f'<text class="sans" x="108" y="{y+48}" font-size="{fs:.1f}" font-weight="600" fill="{t["text"]}">{e(title)}</text>'
+                 + mono(issuer, 108, y + 78, 13, t["dim"], track=0.6) + '</g>')
+    H = y0 + 3 * eh + 2 * gap
+    return svg(W, H, t, "".join(o), "@keyframes draw{to{stroke-dashoffset:0}}", "",
+               title="Certifications and education")
+
+
+def cta_c(t):
+    W, H = 600, 520
+    defs, body = backdrop(W, H, t, uid="c")
+    o = [body, f'<g class="fade">{star(44, 56, 7, t["violet"])}' + mono("START A CONVERSATION", 60, 62, 15, t["lav"], track=2) + '</g>']
+    for k, (txt, y, ital) in enumerate([("Have an AI programme", 128, False), ("in mind?", 180, False), ("Let's talk.", 236, True)]):
+        w = measure(txt, "serif", 46, italic=ital)
+        o.append(f'<text class="serif up" x="36" y="{y}" font-size="46" fill="{"url(#gtext)" if ital else t["text"]}"'
+                 + (' font-style="italic"' if ital else "") + f' textLength="{w:.0f}" lengthAdjust="spacingAndGlyphs" '
+                 f'style="animation-delay:{.1+k*.08:.2f}s">{e(txt)}</text>')
+    for k, line in enumerate(["AI transformation · GenAI & agentic", "delivery · AI governance · advisory.",
+                              "I reply within 24 hours."]):
+        o.append(f'<text class="sans up" x="36" y="{290 + k*33}" font-size="23" fill="{t["muted"]}" '
+                 f'style="animation-delay:{.3+k*.05:.2f}s">{e(line)}</text>')
+    defs += (f'<linearGradient id="bg" x1="0" x2="1"><stop offset="0" stop-color="{t["violet"]}"/><stop offset="1" stop-color="{t["deep"]}"/></linearGradient>'
+             f'<filter id="bglow" x="-30%" y="-80%" width="160%" height="260%"><feGaussianBlur stdDeviation="16"/></filter>')
+    bx, by, bw, bh = 36, 388, 528, 72
+    o.append(f'<g class="up" style="animation-delay:.45s"><rect x="{bx}" y="{by}" width="{bw}" height="{bh}" rx="36" fill="{t["violet"]}" '
+             f'filter="url(#bglow)" class="tb" style="animation:glow 2.8s ease-in-out infinite"/>'
+             f'<rect x="{bx}" y="{by}" width="{bw}" height="{bh}" rx="36" fill="url(#bg)"/>'
+             f'<text class="sans" x="{bx+bw/2-18}" y="{by+45}" font-size="27" font-weight="600" fill="#fff" text-anchor="middle">Ask my AI anything</text>'
+             f'<g class="nudge"><path d="M{bx+bw-92} {by+36} h22 m-8 -8 l8 8 l-8 8" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></g>'
+             + mono("mukherjeesuman.com", W / 2, by + bh + 38, 16, t["dim"], track=1, anchor="middle") + '</g>')
+    return svg(W, H, t, "".join(o), "@keyframes glow{0%,100%{opacity:.35;transform:scale(.97)}50%{opacity:.75;transform:scale(1.03)}}"
+               ".nudge{animation:nudge 1.8s ease-in-out infinite}@keyframes nudge{0%,100%{transform:translateX(0)}50%{transform:translateX(5px)}}",
+               defs, title="Have an AI programme in mind? Let's talk.")
+
+
+def project_c(t, key, top, title, tags, badge, H_fixed=None):
+    W, pad = 480, 30
+    short = PROJECT_SHORT[key]
+    top = top.split("/")[-1]
+    tl = wrap(title, W - 2 * pad, 46, kind="serif", max_lines=2, slack=1.1)
+    bl = wrap(short, W - 2 * pad, 36, max_lines=3)
+    y_title = 132
+    y_body = y_title + (len(tl) - 1) * 52 + 64
+    y_tags = y_body + (len(bl) - 1) * 46 + 40
+    pills, x, ty = [], pad, y_tags
+    for tag in tags:
+        w = mono_w(tag, 24, 0.2) + 36
+        if x + w > W - pad:
+            x, ty = pad, ty + 58
+        pills.append((tag, x, ty, w))
+        x += w + 12
+    H = ty + 48 + 34
+    if H_fixed:  # equal heights so cards line up side by side; tags sit at the bottom
+        shift = H_fixed - H
+        pills = [(tg, px, py + shift, pw) for tg, px, py, pw in pills]
+        H = H_fixed
+    o = [f'<rect x=".75" y=".75" width="{W-1.5}" height="{H-1.5}" rx="26" fill="{t["card"]}" stroke="{t["line"]}" stroke-width="1.5"/>']
+    defs = (f'<radialGradient id="cg"><stop offset="0" stop-color="{t["violet"]}" stop-opacity=".35"/><stop offset="1" stop-color="{t["violet"]}" stop-opacity="0"/></radialGradient>'
+            f'<clipPath id="cc"><rect width="{W}" height="{H}" rx="26"/></clipPath>')
+    o.append(f'<g clip-path="url(#cc)"><circle cx="{W-50}" cy="20" r="170" fill="url(#cg)" class="tb" style="animation:breathe 6s ease-in-out infinite"/></g>')
+    o.append(runner(.75, .75, W - 1.5, H - 1.5, 26, 8, 0, ""))
+    o.append(mono(top, pad, 58, 21, t["dim"], track=0.2))
+    if badge:
+        live = badge == "LIVE"
+        bw = mono_w(badge, 18, 1) + (52 if live else 32)
+        o.append(f'<rect x="{W-pad-bw:.1f}" y="34" width="{bw:.1f}" height="36" rx="18" fill="{t["card2"]}" stroke="{t["line"]}"/>')
+        if live:
+            o.append(f'<circle cx="{W-pad-bw+21:.1f}" cy="52" r="5.5" fill="{t["green"]}"/><circle cx="{W-pad-bw+21:.1f}" cy="52" r="5.5" fill="{t["green"]}" class="tb ping"/>'
+                     + mono(badge, W - pad - bw + 36, 58.5, 18, t["text"], track=1))
+        else:
+            o.append(mono(badge, W - pad - bw / 2, 58.5, 18, t["text"], track=1, anchor="middle"))
+    for j, ln in enumerate(tl):
+        o.append(f'<text class="serif" x="{pad}" y="{y_title + j*52}" font-size="46" fill="{t["text"]}">{e(ln)}</text>')
+    for j, ln in enumerate(bl):
+        o.append(f'<text class="sans" x="{pad}" y="{y_body + j*46}" font-size="36" fill="{t["muted"]}">{e(ln)}</text>')
+    for tag, x, ty, w in pills:
+        o.append(f'<rect x="{x}" y="{ty}" width="{w:.1f}" height="48" rx="24" fill="{t["card2"]}" stroke="{t["line"]}"/>'
+                 + mono(tag, x + w / 2, ty + 32, 24, t["lav"], track=0.2, anchor="middle"))
+    return svg(W, H, t, "".join(o), "@keyframes breathe{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.15);opacity:1}}",
+               defs, title=title)
+
+
 # --------------------------------------------------------------------------- #
 def main():
     for name, t in THEMES.items():
@@ -781,6 +1141,20 @@ def main():
         for fname, content in files.items():
             (out / fname).write_text(content, encoding="utf-8")
         print(f"{name}: {len(files)} files")
+    t = THEMES["dark"]
+    out = ASSETS / "compact"
+    out.mkdir(parents=True, exist_ok=True)
+    files = {"hero.svg": hero_c(t), "metrics.svg": metrics_c(t), "pipeline.svg": pipeline_c(t),
+             "programmes.svg": programmes_c(t), "toolbox.svg": toolbox_c(t),
+             "credentials.svg": credentials_c(t), "cta.svg": cta_c(t)}
+    import re as _re
+    hmax = max(int(_re.search(r'height="(\d+)"', project_c(t, k, tp, ti, tg, b)).group(1))
+               for k, tp, ti, _, tg, b in PROJECTS)
+    for key, top, title, text, tags, badge in PROJECTS:
+        files[f"project-{key}.svg"] = project_c(t, key, top, title, tags, badge, H_fixed=hmax)
+    for fname, content in files.items():
+        (out / fname).write_text(content, encoding="utf-8")
+    print(f"compact: {len(files)} files")
 
 
 if __name__ == "__main__":
