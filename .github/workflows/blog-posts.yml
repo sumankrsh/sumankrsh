@@ -19,4 +19,5 @@ jobs:
           feed_list: "https://www.mukherjeesuman.com/blog/feed.xml"
           max_post_count: 4
           template: "- [**$title**]($url)<br><sub>$description</sub>$newline"
+          tag_post_pre_newline: true # keep the list on its own lines so GitHub renders it as a list
           commit_message: "Update latest blog posts"
