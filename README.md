@@ -74,6 +74,14 @@
   <a href="https://github.com/sumankrsh/Breast-Cancer-Detection-Model">Tabular deep learning</a>
 </sub></p>
 
+### ✦ Fresh builds
+
+<!-- FRESH-BUILDS:START -->
+- [**Local Redact**](https://github.com/sumankrsh/local-redact) · Redact sensitive data before you paste it into an LLM. Runs in your browser ([live demo](https://sumankrsh.github.io/local-redact/)).
+- [**Agentic Claims Triage**](https://github.com/sumankrsh/agentic-claims-triage) · A LangGraph claims-triage agent with PII redaction, coverage checks, human review and an audit log. Synthetic data.
+- [**Insurance Policy Copilot**](https://github.com/sumankrsh/insurance-policy-copilot) · Policy Q&A with cited answers and surrender-risk scoring, with human review and an audit log. Synthetic data.
+<!-- FRESH-BUILDS:END -->
+
 ## ✦ Toolbox
 
 <p align="center">
