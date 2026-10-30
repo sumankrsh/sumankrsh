@@ -77,6 +77,7 @@
 ### ✦ Fresh builds
 
 <!-- FRESH-BUILDS:START -->
+- [**MCP Gatekeeper**](https://github.com/sumankrsh/mcp-gatekeeper) · Rules, a human in the loop and an audit trail for every tool call your agent makes.
 - [**AI Register**](https://github.com/sumankrsh/ai-register) · An AI inventory built from your code, that keeps the answers your reviewers give it.
 - [**Local Redact**](https://github.com/sumankrsh/local-redact) · Redact sensitive data before you paste it into an LLM. Runs in your browser ([live demo](https://sumankrsh.github.io/local-redact/)).
 - [**Agentic Claims Triage**](https://github.com/sumankrsh/agentic-claims-triage) · A LangGraph claims-triage agent with PII redaction, coverage checks, human review and an audit log. Synthetic data.
