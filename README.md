@@ -108,6 +108,7 @@
 ## ✦ Latest writing
 
 <!-- BLOG-POST-LIST:START -->
+- [**Field note: reversible actions for AI agents**](https://www.mukherjeesuman.com/blog/reversible-actions-for-ai-agents)<br><sub>How to make AI agent writes reversible, idempotent and auditable, with a gate on steps that cannot be undone.</sub>
 - [**What 2 December 2026 still requires of insurer GenAI**](https://www.mukherjeesuman.com/blog/article-50-marking-and-insurer-genai)<br><sub>Article 50 has applied since 2 August 2026. The 2 December date is a four-month grace for machine-readable marking of systems already on the EU market.</sub>
 - [**Building a GCC That Leads, Not Just Delivers: A Data &amp; AI Playbook**](https://www.mukherjeesuman.com/blog/building-gcc-that-leads-data-ai-playbook)<br><sub>A first-person playbook for moving a GCC in India from delivery hub to data and AI capability centre: outcomes, product teams, governance and leadership.</sub>
 - [**From AI Pilot to Production in Insurance: A Leader&#39;s Checklist**](https://www.mukherjeesuman.com/blog/ai-pilot-to-production-insurance-checklist)<br><sub>Eight questions I use to decide whether an AI or GenAI initiative in insurance and BFSI is ready for governed production, from value to adoption.</sub>
