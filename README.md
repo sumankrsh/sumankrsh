@@ -77,12 +77,12 @@
 ### ✦ Fresh builds
 
 <!-- FRESH-BUILDS:START -->
+- [**model-card-generator**](https://github.com/sumankrsh/model-card-generator) · Model cards computed from your predictions, with a CI check for missing sections.
 - [**meeting-to-actions**](https://github.com/sumankrsh/meeting-to-actions) · Meeting transcripts to owned, dated actions, with the quote behind each one.
 - [**contextlens**](https://github.com/sumankrsh/contextlens) · See what your agent's context window actually held, call by call.
 - [**model-cost-pilot**](https://github.com/sumankrsh/model-cost-pilot) · Send each kind of request to the cheapest model that still passes your checks.
 - [**agent-crashlab**](https://github.com/sumankrsh/agent-crashlab) · Break your agent's tools on purpose, and count what it does twice.
 - [**ai-policy-lint**](https://github.com/sumankrsh/ai-policy-lint) · Your AI policy as rules, checked on every agent config in every pull request.
-- [**prompt-ci**](https://github.com/sumankrsh/prompt-ci) · Prompts with owners, versions and tests, checked in every pull request.
 <!-- FRESH-BUILDS:END -->
 
 ## ✦ Toolbox
